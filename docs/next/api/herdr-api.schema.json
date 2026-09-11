@@ -9092,7 +9092,9 @@
           "enum": [
             "linux",
             "macos",
-            "windows"
+            "windows",
+            "freebsd",
+            "unknown"
           ],
           "type": "string"
         },

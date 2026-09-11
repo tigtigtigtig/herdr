@@ -110,7 +110,7 @@ They may use ASCII letters, digits, colon, underscore, and hyphen, but not
 dots. Each id type must be unique inside a plugin. Herdr qualifies action ids
 as `plugin.id.action` when it needs a globally unique name.
 
-Use `platforms = ["linux", "macos", "windows"]` to declare where the plugin
+Use `platforms = ["linux", "macos", "windows", "freebsd"]` to declare where the plugin
 can run. Build commands, startup hooks, actions, event hooks, panes, and link
 handlers can also declare their own `platforms`; item-level platforms override
 the top-level list. Local plugins without top-level `platforms` link with a

@@ -75,3 +75,41 @@ cargo nextest run --locked modify_other_keys_query_tracks_mode_two
 cargo nextest run --locked host_report_all_supplies_printable_releases_for_event_type_only_panes
 python3 -m unittest scripts.test_vendor_libghostty_vt scripts.test_ui_hot_path_architecture
 ```
+
+## 0003 enable FreeBSD terminal page compression
+
+status: active
+
+patch: `vendor/patches/libghostty-vt/0003-freebsd-page-compression.patch`
+
+herdr issue: none; local FreeBSD platform implementation
+
+upstream discussion: not opened
+
+upstream pr: not opened
+
+vendored base: `c5a21edfcbc2d5b46540ad91b7980aca31f5f1f3`
+
+local files:
+
+- `vendor/libghostty-vt/src/terminal/mem.zig`
+
+reason: FreeBSD MADV_FREE allows the kernel to reclaim anonymous pages under
+memory pressure while retaining their virtual addresses. Zero mode clears the
+dirty prefix first; strict compression callers restore the whole mapping before
+reading it. RSS reclamation is lazy, unlike Linux MADV_DONTNEED.
+
+reference: https://man.freebsd.org/cgi/man.cgi?query=madvise&sektion=2
+
+remove when: the vendored upstream supports FreeBSD retained-mapping reclamation
+with these zero/strict semantics and the native compression tests pass without
+this patch.
+
+verification:
+
+```sh
+just test-one compression_task_rechecks_history_after_a_read
+just test-one compressed_scrollback_survives_shrink_and_grow_resize
+just test-one incremental_compression_preserves_cold_scrollback
+just maintenance-test
+```

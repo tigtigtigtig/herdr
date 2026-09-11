@@ -10,6 +10,7 @@ fn zig_target(target: &str) -> &str {
         "x86_64-unknown-linux-musl" => "x86_64-linux-musl",
         "aarch64-unknown-linux-musl" => "aarch64-linux-musl",
         "x86_64-unknown-freebsd" => "x86_64-freebsd",
+        "aarch64-unknown-freebsd" => "aarch64-freebsd",
         "x86_64-apple-darwin" => "x86_64-macos",
         "aarch64-apple-darwin" => "aarch64-macos",
         "x86_64-pc-windows-msvc" => "x86_64-windows-msvc",

@@ -1530,12 +1530,16 @@ fn build_platform_supported(
 }
 
 fn current_plugin_platform() -> PluginPlatform {
-    if cfg!(target_os = "linux") {
+    if cfg!(target_os = "freebsd") {
+        PluginPlatform::Freebsd
+    } else if cfg!(target_os = "linux") {
         PluginPlatform::Linux
     } else if cfg!(target_os = "macos") {
         PluginPlatform::Macos
-    } else {
+    } else if cfg!(target_os = "windows") {
         PluginPlatform::Windows
+    } else {
+        PluginPlatform::Unknown
     }
 }
 
@@ -1544,6 +1548,8 @@ fn plugin_platform_name(platform: PluginPlatform) -> &'static str {
         PluginPlatform::Linux => "linux",
         PluginPlatform::Macos => "macos",
         PluginPlatform::Windows => "windows",
+        PluginPlatform::Freebsd => "freebsd",
+        PluginPlatform::Unknown => "unknown",
     }
 }
 
@@ -1671,6 +1677,21 @@ fn print_plugin_pane_help() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "freebsd")]
+    #[test]
+    fn freebsd_build_platform_is_explicit() {
+        assert_eq!(current_plugin_platform(), PluginPlatform::Freebsd);
+        assert!(build_platform_supported(
+            &Some(vec![PluginPlatform::Freebsd]),
+            &None
+        ));
+        assert!(!build_platform_supported(
+            &Some(vec![PluginPlatform::Linux]),
+            &None
+        ));
+        assert!(build_platform_supported(&None, &None));
+    }
 
     fn unique_plugin_id(label: &str) -> String {
         let nanos = SystemTime::now()

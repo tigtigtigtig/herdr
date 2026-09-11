@@ -5,6 +5,28 @@ description: Install, update, and verify Herdr on Linux, macOS, and Windows.
 
 Herdr publishes stable-channel binaries for Linux, macOS, and Windows. Windows is generally available, with documented platform-specific limitations and ongoing fixes.
 
+## FreeBSD (build from source)
+
+FreeBSD support currently requires a source build. Install Rust/Cargo and Zig
+0.15.2, then run `cargo build --release --locked` in the checkout. Set `ZIG`
+to the Zig 0.15.2 executable if another version is on PATH. Run
+`target/release/herdr --version` to verify the build.
+
+Native validation covers FreeBSD 15.1 on amd64. The build also recognises the
+aarch64 target, but that architecture has not been validated here. No FreeBSD
+release assets are published yet, so the download installer and automatic
+updates cannot install a FreeBSD binary; rebuild from source to update.
+
+SSH connections can use a compatible Herdr binary already installed on a FreeBSD
+host. Put it on PATH (for example, in `/usr/local/bin`). Automatic remote
+installation requires a matching release asset.
+
+For desktop integration, install `wl-clipboard` for Wayland or `xclip`/`xsel`
+for X11. Image paste uses `wl-paste` or `xclip`. URL opening uses `xdg-open`,
+and desktop notifications use `notify-send`. These helpers are optional on
+headless hosts. Plugin manifests must explicitly include `freebsd` when they
+declare a supported-platform list; Linux-only plugins are not assumed compatible.
+
 ## Install
 
 On Linux or macOS, run:

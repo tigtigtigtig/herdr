@@ -151,6 +151,7 @@ impl RemotePlatform {
         let os = match os.trim() {
             "Linux" => "linux",
             "Darwin" => "macos",
+            "FreeBSD" => "freebsd",
             _ => return None,
         };
         let arch = match arch.trim() {
@@ -168,6 +169,8 @@ impl RemotePlatform {
             "macos"
         } else if cfg!(target_os = "windows") {
             "windows"
+        } else if cfg!(target_os = "freebsd") {
+            "freebsd"
         } else {
             "unknown"
         };
@@ -1092,6 +1095,8 @@ fi
     emit "/usr/local/bin/herdr"
 "#,
         );
+    } else if platform.os == "freebsd" {
+        script.push_str("    emit \"/usr/local/bin/herdr\"\n");
     } else if platform.os == "linux" {
         script.push_str(
             r#"    emit "/home/linuxbrew/.linuxbrew/bin/herdr"
@@ -3456,7 +3461,12 @@ mod tests {
                 .asset_key(),
             "macos-aarch64"
         );
-        assert!(RemotePlatform::from_uname("FreeBSD", "x86_64").is_none());
+        assert_eq!(
+            RemotePlatform::from_uname("FreeBSD", "amd64")
+                .unwrap()
+                .asset_key(),
+            "freebsd-x86_64"
+        );
     }
 
     #[test]

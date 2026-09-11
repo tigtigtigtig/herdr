@@ -99,7 +99,7 @@ ASCII 字母、数字、冒号、下划线和连字符,但不能用点。每种 
 必须唯一。当需要全局唯一名称时,Herdr 会把动作 id 限定为
 `plugin.id.action` 的形式。
 
-用 `platforms = ["linux", "macos", "windows"]` 声明插件可以运行的平台。
+用 `platforms = ["linux", "macos", "windows", "freebsd"]` 声明插件可以运行的平台。
 构建命令、启动钩子、动作、事件钩子、窗格和链接处理器也可以声明自己的
 `platforms`;条目级的 platforms 覆盖顶层列表。没有顶层 `platforms` 的本地
 插件在链接时会给出警告。

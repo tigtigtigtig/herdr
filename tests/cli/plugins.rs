@@ -125,7 +125,7 @@ id = "example.offline"
 name = "Offline Plugin"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 "#,
     )
     .unwrap();
@@ -184,7 +184,7 @@ id = "example.global-plugin"
 name = "Global Plugin"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 "#,
     )
     .unwrap();
@@ -403,7 +403,7 @@ id = "example.worktree-bootstrap"
 name = "Worktree Bootstrap"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 
 [[build]]
 command = ["sh", "-c", "echo built > built.txt; if [ -n \"$HERDR_SESSION\" ]; then echo \"$HERDR_SESSION\" > leaked-session.txt; fi"]
@@ -534,7 +534,7 @@ id = "example.build-fail"
 name = "Build Fail"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 
 [[build]]
 command = ["sh", "-c", "echo before-fail && echo failed-build >&2 && exit 7"]
@@ -628,7 +628,7 @@ id = "example.missing-tool"
 name = "Missing Tool"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 
 [[build]]
 command = ["definitely-missing-herdr-build-tool-xyz"]
@@ -717,7 +717,7 @@ id = "example.manifest-mutator"
 name = "Manifest Mutator"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 
 [[build]]
 command = ["sh", "mutate.sh"]
@@ -736,7 +736,7 @@ id = "example.manifest-mutator"
 name = "Manifest Mutator"
 version = "0.1.0"
 min_herdr_version = "0.0.1"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 
 [[build]]
 command = ["sh", "mutate.sh"]
@@ -822,7 +822,7 @@ id = "example.worktree-bootstrap"
 name = "Worktree Bootstrap"
 version = "0.2.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 
 [[actions]]
 id = "bootstrap"
@@ -948,7 +948,7 @@ id = "example.worktree-bootstrap"
 name = "Worktree Bootstrap"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 
 [[actions]]
 id = "bootstrap"
@@ -1076,7 +1076,7 @@ id = "example.worktree-bootstrap"
 name = "Worktree Bootstrap"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "windows", "freebsd"]
 
 [[actions]]
 id = "bootstrap"

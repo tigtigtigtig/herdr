@@ -5,6 +5,24 @@ description: Linux、macOS、Windows での Herdr のインストール、アッ
 
 Herdr は Linux、macOS、Windows 向けに安定版チャンネルのバイナリを提供しています。Windows 対応は正式提供されており、プラットフォーム固有の既知の制限と継続的な修正があります。
 
+## FreeBSD（ソースからビルド）
+
+FreeBSD では現在ソースビルドが必要です。Rust/Cargo と Zig 0.15.2 を用意し、
+チェックアウト内で `cargo build --release --locked` を実行してください。
+必要に応じて `ZIG` に Zig 0.15.2 の実行ファイルを指定し、
+`target/release/herdr --version` で確認します。
+
+検証環境は FreeBSD 15.1 amd64 です。aarch64 のビルドターゲットも認識しますが、
+この環境では未検証です。FreeBSD のリリースバイナリはまだ公開されていないため、
+インストーラーと自動更新は利用できません。更新時もソースから再ビルドしてください。
+
+SSH 接続では FreeBSD ホストの PATH（例: `/usr/local/bin`）にある互換 Herdr
+バイナリを使用できます。リモート自動インストールには対応リリースが必要です。
+Wayland のクリップボードには `wl-clipboard`、X11 には `xclip` または `xsel`
+を使用します。画像貼り付けには `wl-paste` または `xclip`、URL には
+`xdg-open`、通知には `notify-send` が必要です。ヘッドレス環境では任意です。
+プラグインの対応プラットフォーム指定には `freebsd` を明示してください。
+
 ## インストール
 
 Linux または macOS では次を実行します:

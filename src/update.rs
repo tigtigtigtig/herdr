@@ -2378,6 +2378,8 @@ fn platform_target() -> (&'static str, &'static str) {
         "macos"
     } else if cfg!(target_os = "windows") {
         "windows"
+    } else if cfg!(target_os = "freebsd") {
+        "freebsd"
     } else {
         "unknown"
     };
@@ -3409,7 +3411,10 @@ mod tests {
     #[test]
     fn platform_target_is_known() {
         let (os, arch) = platform_target();
-        assert!(os == "linux" || os == "macos", "os: {os}");
+        assert!(
+            os == "linux" || os == "macos" || os == "freebsd",
+            "os: {os}"
+        );
         assert!(arch == "x86_64" || arch == "aarch64", "arch: {arch}");
     }
 

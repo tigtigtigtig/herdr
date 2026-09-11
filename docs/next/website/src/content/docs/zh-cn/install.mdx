@@ -5,6 +5,23 @@ description: 在 Linux、macOS 和 Windows 上安装、更新和验证 Herdr。
 
 Herdr 为 Linux、macOS 和 Windows 提供稳定通道二进制文件。Windows 支持已正式发布,并记录了平台专用的已知限制和持续修复。
 
+## FreeBSD（从源码构建）
+
+FreeBSD 目前需要从源码构建。安装 Rust/Cargo 和 Zig 0.15.2，然后在源码目录运行
+`cargo build --release --locked`。如有需要，将 `ZIG` 设置为 Zig 0.15.2
+可执行文件的路径，并运行 `target/release/herdr --version` 验证。
+
+原生验证环境为 FreeBSD 15.1 amd64。构建也识别 aarch64 目标，但此处尚未验证该架构。
+目前没有发布 FreeBSD 二进制文件，因此下载安装器和自动更新无法安装 FreeBSD 版本；
+更新时请重新从源码构建。
+
+SSH 可以使用已安装在 FreeBSD 主机 PATH（例如 `/usr/local/bin`）中的兼容 Herdr
+二进制文件。远程自动安装需要对应的发布文件。
+Wayland 剪贴板需要 `wl-clipboard`，X11 需要 `xclip` 或 `xsel`。
+图片粘贴使用 `wl-paste` 或 `xclip`，打开 URL 使用 `xdg-open`，
+桌面通知使用 `notify-send`。无桌面环境不需要这些可选工具。
+声明支持平台的插件必须明确包含 `freebsd`；不能假定仅支持 Linux 的插件兼容。
+
 ## 安装
 
 在 Linux 或 macOS 上运行:

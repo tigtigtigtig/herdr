@@ -1477,7 +1477,7 @@ mod tests {
 
     // ---- Process identification (real PTY) ----
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     fn open_test_pty() -> portable_pty::PtyPair {
         portable_pty::native_pty_system()
             .openpty(portable_pty::PtySize {
@@ -1489,7 +1489,7 @@ mod tests {
             .expect("failed to open pty")
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     #[test]
     fn foreground_job_detects_sleep() {
         use portable_pty::CommandBuilder;
@@ -1521,28 +1521,35 @@ mod tests {
         child.wait().ok();
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     #[test]
     fn foreground_job_detects_shell_running_command() {
         use portable_pty::CommandBuilder;
-        use std::io::Write;
 
         let pair = open_test_pty();
 
-        // Spawn a shell, then run a command inside it
-        let cmd = CommandBuilder::new("sh");
+        // Execute through the shell without racing its interactive terminal
+        // initialization, which can discard input queued before startup.
+        let mut cmd = CommandBuilder::new("sh");
+        cmd.args(["-c", "exec sleep 999"]);
         let mut child = pair.slave.spawn_command(cmd).expect("failed to spawn");
         let pid = child.process_id().expect("no pid");
 
-        // Write a command to the shell
-        let mut writer = pair.master.take_writer().expect("no writer");
-        // Use exec so sleep replaces sh as the foreground process
-        writer.write_all(b"exec sleep 999\n").ok();
-        drop(writer);
-
-        std::thread::sleep(std::time::Duration::from_millis(100));
-
-        let job = foreground_job(pid).expect("expected foreground job");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let job = loop {
+            let job = foreground_job(pid);
+            if job
+                .as_ref()
+                .is_some_and(|job| job.processes.iter().any(|process| process.name == "sleep"))
+                || std::time::Instant::now() >= deadline
+            {
+                break job;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        };
+        child.kill().ok();
+        child.wait().ok();
+        let job = job.expect("expected foreground job");
         assert!(
             job.processes.iter().any(|p| p.name == "sleep"),
             "expected sleep in {job:?}"
@@ -1552,12 +1559,9 @@ mod tests {
             None,
             "sleep should not map to an agent"
         );
-
-        child.kill().ok();
-        child.wait().ok();
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     #[test]
     fn foreground_job_detects_agent_behind_shell_wrapper() {
         use portable_pty::CommandBuilder;

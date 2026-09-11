@@ -348,6 +348,9 @@ pub enum PluginPlatform {
     Linux,
     Macos,
     Windows,
+    Freebsd,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]

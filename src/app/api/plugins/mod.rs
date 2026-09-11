@@ -853,7 +853,7 @@ name = "Worktree Bootstrap"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
 description = "Prepare new worktrees"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[build]]
 command = ["bun", "install"]
@@ -921,7 +921,7 @@ id = "example.config-dirs"
 name = "Config Dirs"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 "#,
         );
 
@@ -956,7 +956,7 @@ id = "example.legacy-config"
 name = "Legacy Config"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 "#,
         );
 
@@ -1064,7 +1064,7 @@ id = "example.whitespace-argv"
 name = "Whitespace argv"
 version = "0.1.0"
 min_herdr_version = "0.7.0"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[panes]]
 id = "cut"
@@ -1092,7 +1092,7 @@ id = "example.empty-command-{name}"
 name = "Empty command {name}"
 version = "0.1.0"
 min_herdr_version = "0.7.0"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[panes]]
 id = "empty"
@@ -1119,7 +1119,7 @@ id = "example.event-whitespace-order"
 name = "Event whitespace order"
 version = "0.1.0"
 min_herdr_version = "0.7.0"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[events]]
 on = "workspace.created"
@@ -1187,7 +1187,7 @@ command = ["echo", " a", "first "]
 id = "example.missing-min-herdr"
 name = "Missing Min Herdr"
 version = "0.1.0"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 "#,
                 "invalid_plugin_min_herdr_version",
             ),
@@ -1198,7 +1198,7 @@ id = "example.invalid-min-herdr"
 name = "Invalid Min Herdr"
 version = "0.1.0"
 min_herdr_version = "soon"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 "#,
                 "invalid_plugin_min_herdr_version",
             ),
@@ -1209,7 +1209,7 @@ id = "example.future-min-herdr"
 name = "Future Min Herdr"
 version = "0.1.0"
 min_herdr_version = "999.0.0"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 "#,
                 "plugin_requires_newer_herdr",
             ),
@@ -1220,7 +1220,7 @@ id = "example.non-popup-size"
 name = "Non Popup Size"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[panes]]
 id = "board"
@@ -1256,7 +1256,7 @@ id = "example.duplicate"
 name = "Duplicate"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[actions]]
 id = "run"
@@ -1285,7 +1285,7 @@ id = "example.dotted-action"
 name = "Dotted Action"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[actions]]
 id = "build.release"
@@ -1309,7 +1309,7 @@ id = "example.duplicate-pane"
 name = "Duplicate Pane"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[panes]]
 id = "ui"
@@ -1338,11 +1338,11 @@ id = "example.startup-manifest"
 name = "Startup Manifest"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[startup]]
 command = ["node", "restore.js"]
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 "#,
         );
 
@@ -1355,6 +1355,7 @@ platforms = ["linux", "macos"]
             Some(vec![
                 crate::api::schema::PluginPlatform::Linux,
                 crate::api::schema::PluginPlatform::Macos,
+                crate::api::schema::PluginPlatform::Freebsd,
             ])
         );
         let _ = std::fs::remove_dir_all(root);
@@ -1680,7 +1681,7 @@ id = "example.pane"
 name = "Pane Plugin"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[panes]]
 id = "board"
@@ -1787,7 +1788,7 @@ id = "example.path-env"
 name = "Path Env"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[panes]]
 id = "board"
@@ -1891,7 +1892,7 @@ id = "example.tab"
 name = "Tab Plugin"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[panes]]
 id = "board"
@@ -1974,7 +1975,7 @@ id = "example.split"
 name = "Split Plugin"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[panes]]
 id = "board"
@@ -2053,7 +2054,7 @@ id = "example.overlay"
 name = "Overlay Plugin"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[panes]]
 id = "board"
@@ -2134,7 +2135,7 @@ id = "example.popup"
 name = "Popup Plugin"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[panes]]
 id = "board"
@@ -2246,6 +2247,7 @@ command = ["sh", "-c", "printf %s ${{HERDR_PANE_ID-unset}} > '{}'; sleep 1"]
             Some(vec![
                 crate::api::schema::PluginPlatform::Linux,
                 crate::api::schema::PluginPlatform::Macos,
+                crate::api::schema::PluginPlatform::Freebsd,
                 crate::api::schema::PluginPlatform::Windows,
             ])
         );
@@ -2472,7 +2474,7 @@ id = "example.runner"
 name = "Runner"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[actions]]
 id = "run"
@@ -2539,7 +2541,7 @@ id = "example.action-paths"
 name = "Action Paths"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[actions]]
 id = "run"
@@ -2650,7 +2652,7 @@ id = "example.startup"
 name = "Startup"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[startup]]
 command = ["sh", "-c", "printf '%s:%s' \"$HERDR_PLUGIN_ID\" \"$HERDR_PLUGIN_EVENT\" > {}"]
@@ -2697,7 +2699,7 @@ id = "example.event-context"
 name = "Event Context"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[events]]
 on = "worktree.created"
@@ -2915,7 +2917,7 @@ id = "example.links"
 name = "Links"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[actions]]
 id = "open"
@@ -2983,7 +2985,7 @@ id = "example.link-order"
 name = "Link Order"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[actions]]
 id = "specific"
@@ -3030,7 +3032,7 @@ id = "example.bad-links"
 name = "Bad Links"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[actions]]
 id = "open"
@@ -3073,7 +3075,7 @@ id = "example.bad-link-action"
 name = "Bad Link Action"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[actions]]
 id = "open"
@@ -3520,6 +3522,36 @@ command = ["sh", "-c", "echo ok"]
     // ── Platform compatibility tests ─────────────────────────────────────────
 
     #[test]
+    fn plugin_platform_json_preserves_freebsd_and_ignores_future_values() {
+        use crate::api::schema::PluginPlatform;
+        assert_eq!(
+            serde_json::to_string(&PluginPlatform::Freebsd).unwrap(),
+            "\"freebsd\""
+        );
+        assert_eq!(
+            serde_json::from_str::<PluginPlatform>("\"future_os\"").unwrap(),
+            PluginPlatform::Unknown
+        );
+    }
+
+    #[cfg(target_os = "freebsd")]
+    #[test]
+    fn freebsd_rejects_linux_only_plugin_actions() {
+        use crate::api::schema::PluginPlatform;
+        assert!(manifest::ensure_platform_supported(
+            &Some(vec![PluginPlatform::Freebsd]),
+            "action"
+        )
+        .is_ok());
+        let (code, message) =
+            manifest::ensure_platform_supported(&Some(vec![PluginPlatform::Linux]), "action")
+                .unwrap_err();
+        assert_eq!(code, "platform_unsupported");
+        assert!(message.contains("freebsd"));
+        assert!(manifest::ensure_platform_supported(&None, "action").is_ok());
+    }
+
+    #[test]
     fn manifest_with_platforms_parses_correctly() {
         let root = unique_temp_path("plugin-platforms");
         std::fs::create_dir_all(&root).unwrap();
@@ -3530,7 +3562,7 @@ id = "example.platforms"
 name = "Platforms"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[actions]]
 id = "run"
@@ -3550,7 +3582,11 @@ command = ["run.bat"]
         use crate::api::schema::PluginPlatform;
         assert_eq!(
             plugin.platforms,
-            Some(vec![PluginPlatform::Linux, PluginPlatform::Macos])
+            Some(vec![
+                PluginPlatform::Linux,
+                PluginPlatform::Macos,
+                PluginPlatform::Freebsd
+            ])
         );
         // Action without own platforms inherits from plugin level
         let run = plugin.actions.iter().find(|a| a.id == "run").unwrap();
@@ -3571,7 +3607,11 @@ command = ["run.bat"]
     #[test]
     fn effective_platform_resolution_inherits_from_plugin() {
         use crate::api::schema::PluginPlatform;
-        let plugin_platforms = Some(vec![PluginPlatform::Linux, PluginPlatform::Macos]);
+        let plugin_platforms = Some(vec![
+            PluginPlatform::Linux,
+            PluginPlatform::Macos,
+            PluginPlatform::Freebsd,
+        ]);
         let no_override: Option<Vec<PluginPlatform>> = None;
         let action_override = Some(vec![PluginPlatform::Windows]);
 
@@ -3597,12 +3637,12 @@ command = ["run.bat"]
 
         // Declare only platforms that are NOT the current build target so the
         // invoke is guaranteed to be rejected regardless of which OS this runs on.
-        let excluded_platforms = if cfg!(target_os = "linux") {
+        let excluded_platforms = if cfg!(any(target_os = "linux", target_os = "freebsd")) {
             r#"platforms = ["macos", "windows"]"#
         } else if cfg!(target_os = "macos") {
             r#"platforms = ["linux", "windows"]"#
         } else {
-            r#"platforms = ["linux", "macos"]"#
+            r#"platforms = ["linux", "macos", "freebsd"]"#
         };
 
         std::fs::write(
@@ -3662,12 +3702,12 @@ command = ["act"]
         std::fs::create_dir_all(&root).unwrap();
 
         // Plugin declares all platforms; action declares only the non-current platforms.
-        let excluded_platforms = if cfg!(target_os = "linux") {
+        let excluded_platforms = if cfg!(any(target_os = "linux", target_os = "freebsd")) {
             r#"platforms = ["macos", "windows"]"#
         } else if cfg!(target_os = "macos") {
             r#"platforms = ["linux", "windows"]"#
         } else {
-            r#"platforms = ["linux", "macos"]"#
+            r#"platforms = ["linux", "macos", "freebsd"]"#
         };
 
         std::fs::write(
@@ -3678,7 +3718,7 @@ id = "example.override"
 name = "Override"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos", "windows"]
+platforms = ["linux", "macos", "freebsd", "windows"]
 
 [[actions]]
 id = "act"
@@ -3819,7 +3859,7 @@ id = "example.platform-rt"
 name = "Platform RT"
 version = "0.1.0"
 min_herdr_version = "0.6.10"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "freebsd"]
 
 [[actions]]
 id = "act"
@@ -3834,7 +3874,11 @@ command = ["act.exe"]
         use crate::api::schema::PluginPlatform;
         assert_eq!(
             plugin.platforms,
-            Some(vec![PluginPlatform::Linux, PluginPlatform::Macos])
+            Some(vec![
+                PluginPlatform::Linux,
+                PluginPlatform::Macos,
+                PluginPlatform::Freebsd
+            ])
         );
         assert_eq!(
             plugin.actions[0].platforms,
@@ -3849,7 +3893,11 @@ command = ["act.exe"]
         let loaded = crate::persist::plugin_registry::load_from_path(&registry_path);
         assert_eq!(
             loaded[0].platforms,
-            Some(vec![PluginPlatform::Linux, PluginPlatform::Macos])
+            Some(vec![
+                PluginPlatform::Linux,
+                PluginPlatform::Macos,
+                PluginPlatform::Freebsd
+            ])
         );
         assert_eq!(
             loaded[0].actions[0].platforms,

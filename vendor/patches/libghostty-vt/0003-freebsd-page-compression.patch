@@ -1,0 +1,54 @@
+diff --git a/vendor/libghostty-vt/src/terminal/mem.zig b/vendor/libghostty-vt/src/terminal/mem.zig
+index 7fa31480..05fdc242 100644
+--- a/vendor/libghostty-vt/src/terminal/mem.zig
++++ b/vendor/libghostty-vt/src/terminal/mem.zig
+@@ -26,7 +26,7 @@ pub const DecommitMode = enum {
+ ///
+ /// Test builds support both modes because `decommit` simulates reclamation by
+ /// clearing the supplied range. Runtime reclamation is intentionally limited
+-/// to 64-bit Linux and Darwin. Other targets must leave strict callers' memory
++/// to 64-bit Linux, Darwin, and FreeBSD. Other targets leave strict callers' memory
+ /// resident; zero mode still provides its documented memset fallback through
+ /// `decommit` even when this function returns false.
+ pub inline fn canReclaim(comptime mode: DecommitMode) bool {
+@@ -58,6 +58,10 @@ pub inline fn canReclaim(comptime mode: DecommitMode) bool {
+             // dependency to libghostty-vt.
+             if (builtin.target.os.tag.isDarwin()) break :supported true;
+ 
++            // FreeBSD MADV_FREE retains the mapping and permits the kernel to
++            // reclaim its physical pages under pressure.
++            if (builtin.target.os.tag == .freebsd) break :supported true;
++
+             // Other targets have no retained-mapping reclamation contract in
+             // this module. Zero mode can still clear through its memset
+             // fallback, but strict callers must leave their mapping resident.
+@@ -112,6 +116,20 @@ pub fn decommit(
+         }
+     }
+ 
++    // FreeBSD FREE permits lazy reclamation without releasing the address
++    // range. It does not guarantee zeroes on subsequent reads, so zero mode
++    // must clear its dirty prefix first. Strict callers overwrite the entire
++    // mapping when decompressing; writing it cancels pending reclamation.
++    if (comptime builtin.os.tag == .freebsd) {
++        if (comptime mode == .zero) @memset(memory[0..dirty_len], 0);
++        if (std.posix.madvise(memory.ptr, memory.len, std.posix.MADV.FREE)) |_|
++            return true
++        else |err| {
++            log.warn("madvise(FREE) failed err={}", .{err});
++            return false;
++        }
++    }
++
+     // FREE_REUSABLE removes the range from the Darwin process footprint while
+     // retaining its mapping. Zero mode clears its dirty prefix first because
+     // the kernel may preserve the contents. Strict mode avoids that write
+@@ -150,7 +168,7 @@ pub fn decommit(
+ 
+ /// Prepare a mapping previously passed to decommit for reuse.
+ ///
+-/// Linux and test builds need no explicit operation. Darwin pairs
++/// Linux, FreeBSD, and test builds need no explicit operation. Darwin pairs
+ /// FREE_REUSABLE with FREE_REUSE so pages touched by the caller are accounted
+ /// to the process again. Failure does not invalidate the retained mapping, so
+ /// reuse can continue after logging the accounting failure.

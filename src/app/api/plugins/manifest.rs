@@ -108,6 +108,7 @@ impl TryFrom<String> for RawPlatform {
             "linux" => Ok(RawPlatform(PluginPlatform::Linux)),
             "macos" => Ok(RawPlatform(PluginPlatform::Macos)),
             "windows" => Ok(RawPlatform(PluginPlatform::Windows)),
+            "freebsd" => Ok(RawPlatform(PluginPlatform::Freebsd)),
             other => Err(format!(
                 "invalid_plugin_platform: unknown platform '{other}'"
             )),
@@ -506,12 +507,16 @@ fn normalize_platforms(
 
 /// Returns the platform the current binary was compiled for.
 fn current_platform() -> PluginPlatform {
-    if cfg!(target_os = "linux") {
+    if cfg!(target_os = "freebsd") {
+        PluginPlatform::Freebsd
+    } else if cfg!(target_os = "linux") {
         PluginPlatform::Linux
     } else if cfg!(target_os = "macos") {
         PluginPlatform::Macos
-    } else {
+    } else if cfg!(target_os = "windows") {
         PluginPlatform::Windows
+    } else {
+        PluginPlatform::Unknown
     }
 }
 
@@ -553,6 +558,8 @@ fn platform_name(p: PluginPlatform) -> &'static str {
         PluginPlatform::Linux => "linux",
         PluginPlatform::Macos => "macos",
         PluginPlatform::Windows => "windows",
+        PluginPlatform::Freebsd => "freebsd",
+        PluginPlatform::Unknown => "unknown",
     }
 }
 
