@@ -13,9 +13,231 @@ pub(crate) use super::unix_common::{
     configure_status_command, create_remote_private_dir, create_remote_ssh_config_dir,
     create_remote_ssh_config_file, hostname, local_datetime, remote_bridge_endpoint_path,
     remote_private_temp_base, remote_reattach_argument, remote_reattach_program,
-    remote_ssh_config_paths, set_default_plugin_pane_pwd, status_commands_supported,
-    wait_client_stream_readable, StatusCommandGuard,
+    remote_ssh_config_paths, set_default_plugin_pane_pwd, shutdown_client_stream,
+    status_commands_supported, wait_client_stream_readable, write_client_stream,
+    ClientStreamReader, StatusCommandGuard,
 };
+
+// Unlike CLOCK_UPTIME, FreeBSD's monotonic clock includes system suspend.
+pub(super) const REMOTE_BRIDGE_CLOCK: libc::clockid_t = libc::CLOCK_MONOTONIC;
+
+pub(crate) fn config_file_link_count(path: &Path) -> std::io::Result<u64> {
+    use std::os::unix::fs::MetadataExt;
+    Ok(std::fs::metadata(path)?.nlink())
+}
+
+pub(crate) fn check_config_write_target(_target: &Path) -> std::io::Result<()> {
+    Ok(())
+}
+
+pub(crate) fn write_existing_config(_target: &Path, _contents: &[u8]) -> std::io::Result<bool> {
+    Ok(false)
+}
+
+// The FreeBSD ACL API is not exposed by the libc crate. These opaque objects
+// support both UFS POSIX ACLs and ZFS NFSv4 ACLs without translating either.
+unsafe extern "C" {
+    fn acl_get_fd_np(fd: libc::c_int, kind: libc::c_int) -> *mut libc::c_void;
+    fn acl_set_fd_np(fd: libc::c_int, acl: *mut libc::c_void, kind: libc::c_int) -> libc::c_int;
+    fn acl_is_trivial_np(acl: *mut libc::c_void, trivial: *mut libc::c_int) -> libc::c_int;
+    fn acl_free(acl: *mut libc::c_void) -> libc::c_int;
+}
+
+const ACL_TYPE_ACCESS: libc::c_int = 2;
+const ACL_TYPE_NFS4: libc::c_int = 4;
+
+struct ConfigAcl(*mut libc::c_void);
+
+impl Drop for ConfigAcl {
+    fn drop(&mut self) {
+        unsafe {
+            acl_free(self.0);
+        }
+    }
+}
+
+fn config_acl(fd: RawFd, kind: libc::c_int) -> std::io::Result<Option<ConfigAcl>> {
+    let acl = unsafe { acl_get_fd_np(fd, kind) };
+    if !acl.is_null() {
+        return Ok(Some(ConfigAcl(acl)));
+    }
+    let error = std::io::Error::last_os_error();
+    match error.raw_os_error() {
+        Some(libc::EINVAL | libc::EOPNOTSUPP) => Ok(None),
+        _ => Err(error),
+    }
+}
+
+pub(crate) fn create_config_temporary(
+    path: &Path,
+    private: bool,
+) -> std::io::Result<std::fs::File> {
+    use std::os::{fd::AsRawFd, unix::fs::OpenOptionsExt};
+    if private {
+        let parent = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let directory = std::fs::File::open(parent)?;
+        if let Some(acl) = config_acl(directory.as_raw_fd(), ACL_TYPE_NFS4)? {
+            let mut trivial = 0;
+            if unsafe { acl_is_trivial_np(acl.0, &mut trivial) } != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            // A named inherited NFSv4 grant can outlive chmod through an already
+            // opened descriptor. Refuse such staging directories before creation.
+            if trivial == 0 {
+                return Err(std::io::Error::other(
+                    "cannot safely stage private config in a directory with a nontrivial NFSv4 ACL",
+                ));
+            }
+        }
+    }
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(if private { 0o600 } else { 0o666 })
+        .open(path)
+}
+
+pub(crate) fn write_config_temporary(
+    source: Option<&Path>,
+    temporary: &Path,
+    contents: &[u8],
+) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::os::{fd::AsRawFd, unix::fs::MetadataExt};
+    let mut output = std::fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(temporary)?;
+    if let Some(source) = source {
+        let input = std::fs::File::open(source)?;
+        let metadata = input.metadata()?;
+        let current = output.metadata()?;
+        if (metadata.uid(), metadata.gid()) != (current.uid(), current.gid())
+            && unsafe { libc::fchown(output.as_raw_fd(), metadata.uid(), metadata.gid()) } != 0
+        {
+            return Err(std::io::Error::last_os_error());
+        }
+        for namespace in [libc::EXTATTR_NAMESPACE_USER, libc::EXTATTR_NAMESPACE_SYSTEM] {
+            copy_config_attributes(input.as_raw_fd(), output.as_raw_fd(), namespace)?;
+        }
+        // Copy even trivial ACLs so destination inherited grants cannot survive.
+        // Do this before enabling mode bits: chmod could unmask an inherited
+        // POSIX grant and permit a descriptor that survives later ACL removal.
+        let mut nfs4_acl = false;
+        for kind in [ACL_TYPE_ACCESS, ACL_TYPE_NFS4] {
+            if let Some(acl) = config_acl(input.as_raw_fd(), kind)? {
+                if unsafe { acl_set_fd_np(output.as_raw_fd(), acl.0, kind) } != 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                nfs4_acl |= kind == ACL_TYPE_NFS4;
+            }
+        }
+        if nfs4_acl {
+            // NFSv4 ACL assignment sets the ordinary mode bits. chmod afterward
+            // can rewrite ordered allow/deny entries; reject uncommon special
+            // mode bits we cannot preserve without changing the access policy.
+            if output.metadata()?.mode() != metadata.mode() {
+                return Err(std::io::Error::other(
+                    "cannot preserve config mode without rewriting its NFSv4 ACL",
+                ));
+            }
+        } else {
+            output.set_permissions(metadata.permissions())?;
+        }
+    }
+    output.write_all(contents)?;
+    output.sync_all()
+}
+
+fn copy_config_attributes(
+    source: RawFd,
+    destination: RawFd,
+    namespace: libc::c_int,
+) -> std::io::Result<()> {
+    let size = unsafe { libc::extattr_list_fd(source, namespace, std::ptr::null_mut(), 0) };
+    if size < 0 {
+        let error = std::io::Error::last_os_error();
+        // SYSTEM attributes are privileged; FreeBSD denies enumeration instead of
+        // filtering hidden labels as Linux does. Preserve them when permitted,
+        // but ordinary users cannot inspect or transfer that namespace. Native
+        // ACL copying remains mandatory and never uses this exception.
+        if error.raw_os_error() == Some(libc::EOPNOTSUPP)
+            || (namespace == libc::EXTATTR_NAMESPACE_SYSTEM
+                && unsafe { libc::geteuid() } != 0
+                && matches!(error.raw_os_error(), Some(libc::EPERM | libc::EACCES)))
+        {
+            return Ok(());
+        }
+        return Err(error);
+    }
+    let mut names = vec![0_u8; size as usize + 1];
+    let count =
+        unsafe { libc::extattr_list_fd(source, namespace, names.as_mut_ptr().cast(), names.len()) };
+    if count < 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    if count != size {
+        return Err(std::io::Error::other(
+            "config attribute list changed during copy",
+        ));
+    }
+    names.truncate(count as usize);
+    // FreeBSD returns length-prefixed names, not Linux's NUL-delimited list.
+    let mut remaining = names.as_slice();
+    while let Some((&length, rest)) = remaining.split_first() {
+        let Some(name) = rest.get(..usize::from(length)) else {
+            return Err(std::io::Error::other(
+                "invalid extended attribute name list",
+            ));
+        };
+        let name = std::ffi::CString::new(name).map_err(std::io::Error::other)?;
+        remaining = &rest[usize::from(length)..];
+        let size = unsafe {
+            libc::extattr_get_fd(source, namespace, name.as_ptr(), std::ptr::null_mut(), 0)
+        };
+        if size < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        let mut value = vec![0_u8; size as usize + 1];
+        let read = unsafe {
+            libc::extattr_get_fd(
+                source,
+                namespace,
+                name.as_ptr(),
+                value.as_mut_ptr().cast(),
+                value.len(),
+            )
+        };
+        if read < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        if read != size {
+            return Err(std::io::Error::other(
+                "config attribute changed during copy",
+            ));
+        }
+        value.truncate(read as usize);
+        let written = unsafe {
+            libc::extattr_set_fd(
+                destination,
+                namespace,
+                name.as_ptr(),
+                value.as_ptr().cast(),
+                value.len(),
+            )
+        };
+        if written < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        if written as usize != value.len() {
+            return Err(std::io::Error::other("short extended attribute write"));
+        }
+    }
+    Ok(())
+}
 
 const SERVER_NOFILE_LIMIT_TARGET: libc::rlim_t = 8192;
 
@@ -328,6 +550,133 @@ pub fn process_exists(pid: u32) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    unsafe extern "C" {
+        fn acl_from_text(text: *const libc::c_char) -> *mut libc::c_void;
+        fn acl_cmp_np(left: *mut libc::c_void, right: *mut libc::c_void) -> libc::c_int;
+    }
+
+    #[test]
+    fn config_replacement_preserves_native_acl() {
+        use std::os::fd::AsRawFd;
+        let directory =
+            std::env::temp_dir().join(format!("herdr-freebsd-native-acl-{}", std::process::id()));
+        std::fs::create_dir(&directory).unwrap();
+        let source = directory.join("source");
+        let temporary = directory.join("temporary");
+        std::fs::write(&source, b"old").unwrap();
+        let input = std::fs::File::open(&source).unwrap();
+        let (kind, text) = if config_acl(input.as_raw_fd(), ACL_TYPE_NFS4)
+            .unwrap()
+            .is_some()
+        {
+            (ACL_TYPE_NFS4, c"owner@:rwxpDdaARWcCos::allow,user:65534:r::allow,group@:::allow,everyone@:::allow")
+        } else {
+            (
+                ACL_TYPE_ACCESS,
+                c"user::rw-,user:65534:r--,group::---,mask::r--,other::---",
+            )
+        };
+        let acl = ConfigAcl(unsafe { acl_from_text(text.as_ptr()) });
+        assert!(!acl.0.is_null());
+        assert_eq!(
+            unsafe { acl_set_fd_np(input.as_raw_fd(), acl.0, kind) },
+            0,
+            "{}",
+            std::io::Error::last_os_error()
+        );
+        drop(create_config_temporary(&temporary, true).unwrap());
+        write_config_temporary(Some(&source), &temporary, b"new").unwrap();
+        let output = std::fs::File::open(&temporary).unwrap();
+        let original = config_acl(input.as_raw_fd(), kind).unwrap().unwrap();
+        let copied = config_acl(output.as_raw_fd(), kind).unwrap().unwrap();
+        assert_eq!(unsafe { acl_cmp_np(original.0, copied.0) }, 0);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn private_config_staging_rejects_nontrivial_nfs4_parent_before_creation() {
+        use std::os::fd::AsRawFd;
+        let directory =
+            std::env::temp_dir().join(format!("herdr-freebsd-parent-acl-{}", std::process::id()));
+        std::fs::create_dir(&directory).unwrap();
+        let parent = std::fs::File::open(&directory).unwrap();
+        if config_acl(parent.as_raw_fd(), ACL_TYPE_NFS4)
+            .unwrap()
+            .is_none()
+        {
+            std::fs::remove_dir(directory).unwrap();
+            return;
+        }
+        let acl = ConfigAcl(unsafe {
+            acl_from_text(c"owner@:rwxpDdaARWcCos::allow,user:65534:r:fd:allow,group@:::allow,everyone@:::allow".as_ptr())
+        });
+        assert!(!acl.0.is_null());
+        assert_eq!(
+            unsafe { acl_set_fd_np(parent.as_raw_fd(), acl.0, ACL_TYPE_NFS4) },
+            0
+        );
+        let temporary = directory.join("temporary");
+        assert!(create_config_temporary(&temporary, true).is_err());
+        assert!(!temporary.exists());
+        std::fs::remove_dir(directory).unwrap();
+    }
+
+    #[test]
+    fn config_replacement_preserves_mode_ownership_and_user_attributes() {
+        use std::os::{
+            fd::AsRawFd,
+            unix::fs::{MetadataExt, PermissionsExt},
+        };
+        let directory =
+            std::env::temp_dir().join(format!("herdr-freebsd-config-{}", std::process::id()));
+        std::fs::create_dir(&directory).unwrap();
+        let source = directory.join("source");
+        let temporary = directory.join("temporary");
+        std::fs::write(&source, b"old secret").unwrap();
+        std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o640)).unwrap();
+        let input = std::fs::File::open(&source).unwrap();
+        let value = b"preserved";
+        assert_eq!(
+            unsafe {
+                libc::extattr_set_fd(
+                    input.as_raw_fd(),
+                    libc::EXTATTR_NAMESPACE_USER,
+                    c"herdr-test".as_ptr(),
+                    value.as_ptr().cast(),
+                    value.len(),
+                )
+            },
+            value.len() as isize
+        );
+        drop(create_config_temporary(&temporary, true).unwrap());
+        assert_eq!(std::fs::metadata(&temporary).unwrap().mode() & 0o777, 0o600);
+        write_config_temporary(Some(&source), &temporary, b"new secret").unwrap();
+        let original = input.metadata().unwrap();
+        let output = std::fs::File::open(&temporary).unwrap();
+        let actual = output.metadata().unwrap();
+        assert_eq!(
+            (actual.uid(), actual.gid(), actual.mode()),
+            (original.uid(), original.gid(), original.mode())
+        );
+        let mut copied = [0_u8; 9];
+        assert_eq!(
+            unsafe {
+                libc::extattr_get_fd(
+                    output.as_raw_fd(),
+                    libc::EXTATTR_NAMESPACE_USER,
+                    c"herdr-test".as_ptr(),
+                    copied.as_mut_ptr().cast(),
+                    copied.len(),
+                )
+            },
+            value.len() as isize
+        );
+        assert_eq!(&copied, value);
+        assert_eq!(std::fs::read(&source).unwrap(), b"old secret");
+        assert_eq!(std::fs::read(&temporary).unwrap(), b"new secret");
+        std::fs::remove_dir_all(directory).unwrap();
+    }
 
     struct ChildGuard(std::process::Child);
     impl Drop for ChildGuard {
