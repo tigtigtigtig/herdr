@@ -1695,7 +1695,8 @@ command = ["cmd.exe", "/d", "/c", "slot.cmd", "default"]
                 let expected = child_cwd.join(where_probe).canonicalize().unwrap();
                 let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
                 loop {
-                    let text = runtime.recent_unwrapped_text(20);
+                    // The pane is a narrow split, so the long path wraps across many rows.
+                    let text = runtime.recent_unwrapped_text(400);
                     if text.lines().any(|line| {
                         std::fs::canonicalize(line.trim()).is_ok_and(|path| path == expected)
                     }) {
@@ -3330,6 +3331,7 @@ action = "missing"
                 seq: None,
                 agent_session_id: None,
                 agent_session_path: None,
+                resume_argv: None,
             },
         );
 

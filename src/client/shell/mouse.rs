@@ -518,14 +518,27 @@ impl ClientShellState {
         {
             return None;
         }
+        let snapshot = self.snapshot.as_deref()?;
         let mut slots = self
             .hits
             .workspaces
             .iter()
             .filter(|hit| hit.endpoint_id == self.active_endpoint_id && !hit.indented)
+            .filter(|hit| {
+                hit.group_toggle.as_ref().is_none_or(|(_, key)| {
+                    snapshot
+                        .workspaces
+                        .iter()
+                        .find(|workspace| {
+                            workspace.worktree.as_ref().is_some_and(|worktree| {
+                                worktree.key == *key && !worktree.is_linked_worktree
+                            })
+                        })
+                        .is_some_and(|workspace| workspace.workspace_id == hit.workspace_id)
+                })
+            })
             .map(|hit| (Some(hit.workspace_id.clone()), hit.rect.y.saturating_sub(1)))
             .collect::<Vec<_>>();
-        let snapshot = self.snapshot.as_deref()?;
         let empty_collapsed_groups = HashSet::new();
         let collapsed_groups = self
             .collapsed_groups_for_endpoint(&self.active_endpoint_id)
@@ -544,7 +557,15 @@ impl ClientShellState {
                 .is_some_and(|workspace| workspace.workspace_id == last_hit.workspace_id)
         })?;
         let next = entries.get(last_position + 1);
-        if !next.is_some_and(|entry| entry.indented) {
+        if !next.is_some_and(|entry| {
+            entry.indented
+                || last_hit.group_toggle.as_ref().is_some_and(|(_, key)| {
+                    snapshot.workspaces[entry.index]
+                        .worktree
+                        .as_ref()
+                        .is_some_and(|worktree| worktree.key == *key)
+                })
+        }) {
             let before = next.and_then(|entry| {
                 snapshot
                     .workspaces
@@ -607,7 +628,7 @@ impl ClientShellState {
                 .position(|workspace| workspace.workspace_id == target)?,
             None => remaining.len(),
         };
-        if insert_position == source_position {
+        if source.worktree.is_none() && insert_position == source_position {
             return None;
         }
 
@@ -626,7 +647,11 @@ impl ClientShellState {
                         })
                         .map(|workspace| workspace.workspace_id.clone()),
                 )
-                .collect();
+                .collect::<Vec<_>>();
+            if before_workspace_id.is_some_and(|target| workspace_ids.iter().any(|id| id == target))
+            {
+                return None;
+            }
             Some(crate::api::schema::Method::WorkspaceMoveBlock(
                 crate::api::schema::WorkspaceMoveBlockParams {
                     workspace_ids,
@@ -1032,6 +1057,22 @@ impl ClientShellState {
                     }
                     return;
                 }
+                Some(ClientChromeDrag::NavigatorScrollbar { grab_row_offset }) => {
+                    if let Some(metrics) = self.hits.navigator_scroll_metrics {
+                        let offset = crate::ui::scrollbar_offset_from_drag_row(
+                            metrics,
+                            self.hits.navigator_scrollbar,
+                            mouse.row,
+                            *grab_row_offset,
+                        );
+                        self.scroll_navigator_to(
+                            metrics.max_offset_from_bottom.saturating_sub(offset),
+                            metrics.viewport_rows,
+                        );
+                        outcome.repaint = true;
+                    }
+                    return;
+                }
                 Some(ClientChromeDrag::HelpScrollbar { grab_row_offset }) => {
                     if let (Some(metrics), Some(ClientShellOverlay::Help(help))) =
                         (self.hits.help_scroll_metrics, self.overlay.as_mut())
@@ -1317,6 +1358,7 @@ impl ClientShellState {
                     ClientChromeDrag::WorkspaceScrollbar { .. }
                     | ClientChromeDrag::AgentScrollbar { .. }
                     | ClientChromeDrag::HelpScrollbar { .. }
+                    | ClientChromeDrag::NavigatorScrollbar { .. }
                     | ClientChromeDrag::ProductAnnouncementScrollbar { .. }
                     | ClientChromeDrag::ReleaseNotesScrollbar { .. } => {}
                 }
@@ -1613,7 +1655,29 @@ impl ClientShellState {
                     }
                 }
                 MouseEventKind::Down(MouseButton::Left) => {
-                    if super::contains(self.hits.navigator_search, point) {
+                    if super::contains(self.hits.navigator_scrollbar, point) {
+                        if let Some(metrics) = self.hits.navigator_scroll_metrics {
+                            if let Some(grab_row_offset) = crate::ui::scrollbar_thumb_grab_offset(
+                                metrics,
+                                self.hits.navigator_scrollbar,
+                                mouse.row,
+                            ) {
+                                self.chrome_drag =
+                                    Some(ClientChromeDrag::NavigatorScrollbar { grab_row_offset });
+                            } else {
+                                let offset = crate::ui::scrollbar_offset_from_row(
+                                    metrics,
+                                    self.hits.navigator_scrollbar,
+                                    mouse.row,
+                                );
+                                self.scroll_navigator_to(
+                                    metrics.max_offset_from_bottom.saturating_sub(offset),
+                                    metrics.viewport_rows,
+                                );
+                                outcome.repaint = true;
+                            }
+                        }
+                    } else if super::contains(self.hits.navigator_search, point) {
                         if let Some(ClientShellOverlay::Navigator(navigator)) =
                             self.overlay.as_mut()
                         {
@@ -1621,19 +1685,13 @@ impl ClientShellState {
                             navigator.filter = None;
                         }
                         outcome.repaint = true;
-                    } else if let Some((rect, target)) = row_hit {
+                    } else if let Some((_, target)) = row_hit {
                         if let Some(ClientShellOverlay::Navigator(navigator)) =
                             self.overlay.as_mut()
                         {
-                            navigator.selected = Some(target.clone());
+                            navigator.selected = Some(target);
                         }
-                        let workspace = matches!(target, ClientNavigatorTarget::Workspace { .. });
-                        if workspace && mouse.column <= rect.x.saturating_add(3) {
-                            self.toggle_selected_navigator_workspace();
-                            outcome.repaint = true;
-                        } else {
-                            self.accept_navigator_selection(outcome);
-                        }
+                        self.accept_navigator_selection(outcome);
                     } else if !super::contains(self.hits.navigator_popup, point) {
                         self.overlay = None;
                         outcome.repaint = true;
@@ -1659,20 +1717,7 @@ impl ClientShellState {
                 match self.overlay.as_ref() {
                     Some(ClientShellOverlay::Rename(_)) => self.save_rename_overlay(outcome),
                     Some(ClientShellOverlay::ConfirmClose(_)) => {
-                        let Some(ClientShellOverlay::ConfirmClose(confirm)) = self.overlay.take()
-                        else {
-                            return;
-                        };
-                        self.push_endpoint_method(
-                            crate::api::schema::Method::WorkspaceClose(
-                                crate::api::schema::WorkspaceCloseParams {
-                                    workspace_id: confirm.workspace_id,
-                                    close_group: true,
-                                },
-                            ),
-                            outcome,
-                        );
-                        outcome.repaint = true;
+                        self.accept_close_confirmation(outcome);
                     }
                     _ => {}
                 }

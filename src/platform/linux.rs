@@ -23,6 +23,9 @@ pub(crate) use super::unix_common::{
 #[cfg(test)]
 mod config_file_tests;
 
+mod shutdown;
+pub(crate) use shutdown::monitor_host_shutdown;
+
 const WSL_MARKER_ENV_VARS: &[&str] = &["WSL_DISTRO_NAME", "WSL_INTEROP"];
 const PROCESS_DETECTION_ENV_VAR: &str = "HERDR_PROCESS_DETECTION";
 const CHILD_GROUPS_SCAN_LIMIT: usize = 64;
@@ -772,7 +775,8 @@ pub fn process_exists(pid: u32) -> bool {
 }
 
 pub use super::unix_desktop::{
-    open_url, read_clipboard_image, read_clipboard_text, show_desktop_notification, write_clipboard,
+    clipboard_text_matches, open_url, read_clipboard_image, read_clipboard_text,
+    show_desktop_notification, write_clipboard,
 };
 
 fn process_session_id(pid: u32) -> Option<i32> {

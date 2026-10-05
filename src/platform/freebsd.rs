@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub use super::unix_desktop::{
-    open_url, read_clipboard_image, read_clipboard_text, show_desktop_notification, write_clipboard,
+    clipboard_text_matches, open_url, read_clipboard_image, read_clipboard_text,
+    show_desktop_notification, write_clipboard,
 };
 use super::{ForegroundJob, ForegroundProcess, Signal};
 
